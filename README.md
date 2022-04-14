@@ -1,4 +1,5 @@
 Compsci 677: Distributed and Operating Systems
+
 Spring 2022
 
 # Lab 3: Caching, Replication and Fault Tolerance
@@ -13,11 +14,15 @@ names of all team members at the top of the readme.
 
 The lab has the following learning outcomes with regards to concepts covered in class.
 
-TODO
+* Learn about caching, replication, and consistency.
+* Learn about the concepts of fault tolerance and high availability.
+* Learn about how to deploy your application on the cloud.
 
 ## Lab Description
 
-This project is based on lab 2. You can reuse some of the code you wrote in lab 2 if you want. You are going to implement a
+This project is based on lab 2. You can reuse some of the code you wrote in lab 2 if you want. You
+are going to add caching, replication, and fault tolerance to the toy store application that we have
+implemented in the previous labs. Here are some basic requirements:
 
 1.  The toy store application consists of three microservices: a front-end service, a catalog
     service, and an order service.
@@ -46,8 +51,8 @@ This project is based on lab 2. You can reuse some of the code you wrote in lab 
     still need to be able to handle requests concurrently. You can use any concurrency models
     covered in class.
 
-4.  Add some variety to the toy offering by initializing your catalog with at least 20 different
-    toys( You can consider add some toys from the [National Toy Hall of
+4.  Add some variety to the toy offering by initializing your catalog with at least 10 different
+    toys( You can consider adding some toys from the [National Toy Hall of
     Fame](https://en.wikipedia.org/wiki/National_Toy_Hall_of_Fame)). Each toy should have an initial
     stock of 100. Also the catalog service will periodically restock the toys that are out of stock.
     The catalog service should check remaining quantity of every toy every 10 seconds, if a toy is
@@ -56,7 +61,10 @@ This project is based on lab 2. You can reuse some of the code you wrote in lab 
 5.  The client first queries the front-end service with a random toy. If the returned quantity is
     greater than zero, with probability p it will send an order request (make p an variable that's
     adjustable). You can decide whether the the toy query request and the order request uses the
-    same connection.
+    same connection. The client will repeat for a number of iterations, and record the the order
+    number and order information if a purchase request was successful. Before exiting, the client
+    will retrieve the order information of each order that was made using the order query request,
+    and check whether the server reply matches the locally stored order information.
 
 ## Part 1: Caching
 
@@ -112,12 +120,19 @@ First, write some simple test cases to verify that your code works as expected. 
 each individual microservice as well as the whole application. Submit your test cases and test
 output in a test directory.
 
-Deploy your application on an `m5a.xlarge` instance in the `us-east-1` region on AWS. We will
+Next, deploy your application on an `m5a.xlarge` instance in the `us-east-1` region on AWS. We will
 provide instructions on how to do this in homework 6. Run 5 clients on your local machine. Measure
 the latency seen by each client for different type requests. Change the probability p of a follow up
-purchase request from 0 to 80%, with an increment of 20%.
+purchase request from 0 to 80%, with an increment of 20%, and record the result for each p setting.
+Make simple plots showing the values of p on the X-axis and the latency of different types of
+request on the y-axis. Also do the same experiments but with caching turned off, estimate how much
+benefits does caching provide by comparing the results.
 
-TODO: Add evaluation for fault tolerance.
+Finally, simulate crash failures by killing a random order service replica while the clients is
+running, and then bring it back online after some time. Repeat this experiment several times and
+make sure that you test the case when the leader is killed. Can the clients notice the failures
+(either during order requests or the final order checking phase) or are they transparent to the
+clients? Do all the order service replicas end up with the same database file?
 
 ## What to submit
 
@@ -139,4 +154,17 @@ observations.
 
 ## Grading Rubric
 
-TODO
+Parts 1-3 account for 70% of the total lab grade:
+
+    *   Code should have inline comments (5%).
+    *   GitHub repo should have adequate commits and meaningful commit messages (5%).
+    *   Source code should build and work correctly (40%).
+    *   A descriptive design doc should be submitted (15%).
+    *   An output file should be included (5%).
+
+Parts 4 account for 30% of the total lab grade:
+
+    *   Should provide steps in your eval docs about how you deployed your application on AWS.
+        Include scripts in your repo if needed (5%).
+    *   An eval doc with measurement results and plots (15%).
+    *   Analysis of the results and answers to the questions in part 3 (10%).
