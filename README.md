@@ -156,15 +156,15 @@ observations.
 
 Parts 1-3 account for 70% of the total lab grade:
 
-    *   Code should have inline comments (5%).
-    *   GitHub repo should have adequate commits and meaningful commit messages (5%).
-    *   Source code should build and work correctly (40%).
-    *   A descriptive design doc should be submitted (15%).
-    *   An output file should be included (5%).
+* Code should have inline comments (5%).
+* GitHub repo should have adequate commits and meaningful commit messages (5%).
+* Source code should build and work correctly (40%).
+* A descriptive design doc should be submitted (15%).
+* An output file should be included (5%).
 
 Parts 4 account for 30% of the total lab grade:
 
-    *   Should provide steps in your eval docs about how you deployed your application on AWS.
-        Include scripts in your repo if needed (5%).
-    *   An eval doc with measurement results and plots (15%).
-    *   Analysis of the results and answers to the questions in part 3 (10%).
+* Should provide steps in your eval docs about how you deployed your application on AWS. Include
+  scripts in your repo if needed (5%).
+* An eval doc with measurement results and plots (15%).
+* Analysis of the results and answers to the questions in part 3 (10%).
