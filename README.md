@@ -198,8 +198,9 @@ Parts 1-3 account for 85% of the total lab grade:
 Parts 4 accounts for 15% of the total lab grade:
 
 * Should provide steps in your eval docs about how you deployed your application on AWS. Include
-  scripts in your repo if needed (15%).
+  scripts in your repo if needed (5%).
+* An eval doc with measurement results and plots (5%).
+* Analysis of the results and answers to the questions in part 3 (5%).
+
 
 Part 5 acconunts for an extra 20% of the total lab grade.
-* An eval doc with measurement results and plots (15%).
-* Analysis of the results and answers to the questions in part 3 (10%).
