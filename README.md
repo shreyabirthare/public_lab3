@@ -4,11 +4,13 @@ Spring 2024
 
 # Lab 3: Asterix and Double Trouble - Caching, Replication and Fault Tolerance
 
-## Team Members
 
-You may work in groups of 2 for this lab assignment. Please list the names of the group members
-here. You may replace this readme file with your own documentation, in which case, please list the
-names of all team members at the top of the readme.
+## Information about your submission
+1. Name and email: add your name and email here. 
+2. Team member name and email: add team member info. say none if this is a solo submission
+3. Number of late days used for this lab: say zero if none used
+4. Number of late days used so far including this lab: say zero if none used.
+
 
 ## Goals and Learning Outcomes
 
@@ -16,8 +18,23 @@ The lab has the following learning outcomes with regards to concepts covered in 
 
 * Learn about caching, replication, and consistency.
 * Learn about the concepts of fault tolerance and high availability.
-* Optionally learn about Paxos and Raft 
 * Learn about how to deploy your application on the cloud.
+* Optionally learn about Paxos and Raft 
+
+## Instructions
+
+1. You may work in groups of two for this lab. If you decide to work in groups, you should briefly
+    describe how the work is divided between the two team members in your README file.  Be sure to list
+    the names of all team members at the top of this README file.
+2) You can use either Python or Java for this assignment. For this lab, you may use different languages  for different
+    microservices if you want.
+3) Use the following team naming format when you create your team on GitHub: spring24-lab3-GitHubid1-Githubid2. For example, spring24-lab3-alice-bob for a group of two. For a single group team, use spring24-lab3-alice as an example team name for a student with github id alice. If you already chose a different format for your team, edit your team name to the above format. 
+4) Do's and don'ts:
+   - discus lab with other students: allowed
+   - use of AI tools: allowed with full attribution (be sure to read the policy in the course syllabus)
+   - use code from others/Internet/friends/coders for hire: disallowed
+   - ask TAs for clarifications/help: always allowed
+
 
 ## Lab Description
 
