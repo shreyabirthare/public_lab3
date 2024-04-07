@@ -38,7 +38,7 @@ The lab has the following learning outcomes with regards to concepts covered in 
 
 ## Lab Description
 
-The Gauls have really taken to online commerce and buying goos online has become their village pass time. To ensure high performance and tolerance to failures, they have decided to adopt modern disstributed systems design practices.
+The Gauls have really taken to online commerce and buying toys online has become their village pass time. To ensure high performance and tolerance to failures, they have decided to adopt modern disstributed systems design practices.
 
 This project is based on lab 2. You can reuse some of the code you wrote in lab 2 if you want. Your goal is to help the Gauls by adding caching, replication, and fault tolerance  to the toy store application that we have implemented in the previous labs. Here are some basic requirements:
 
