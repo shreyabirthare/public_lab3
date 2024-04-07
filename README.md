@@ -1,8 +1,8 @@
 Compsci 677: Distributed and Operating Systems
 
-Spring 2022
+Spring 2024
 
-# Lab 3: Caching, Replication and Fault Tolerance
+# Lab 3: Asterix and Double Trouble - Caching, Replication and Fault Tolerance
 
 ## Team Members
 
@@ -16,13 +16,14 @@ The lab has the following learning outcomes with regards to concepts covered in 
 
 * Learn about caching, replication, and consistency.
 * Learn about the concepts of fault tolerance and high availability.
+* Optionally learn about Paxos and Raft 
 * Learn about how to deploy your application on the cloud.
 
 ## Lab Description
 
-This project is based on lab 2. You can reuse some of the code you wrote in lab 2 if you want. You
-are going to add caching, replication, and fault tolerance to the toy store application that we have
-implemented in the previous labs. Here are some basic requirements:
+The Gauls have really taken to online commerce and buying goos online has become their village pass time. To ensure high performance and tolerance to failures, they have decided to adopt modern disstributed systems design practices.
+
+This project is based on lab 2. You can reuse some of the code you wrote in lab 2 if you want. Your goal is to help the Gauls by adding caching, replication, and fault tolerance  to the toy store application that we have implemented in the previous labs. Here are some basic requirements:
 
 1.  The toy store application consists of three microservices: a front-end service, a catalog
     service, and an order service.
@@ -42,9 +43,9 @@ implemented in the previous labs. Here are some basic requirements:
         top-level `error` object should be returned. The `error` object should contain two fields:
         `code` and `message`
 
-    Since in this lab we will focus on higher level concepts, you can use a web framework like
-    [`Django`](https://github.com/perwendel/spark), [`Flask`](https://github.com/pallets/flask),
-    [`Spark`](https://github.com/perwendel/spark) to implement your front-end service. You can also
+    Since in this lab we will focus on higher level concepts, you can use any web framework like
+    [`Django`](https://www.djangoproject.com), [`Flask`](https://github.com/pallets/flask),
+    [`Java Spark`](https://github.com/perwendel/spark) to implement your front-end service. You can also
     reuse the code you wrote in lab 2 if you prefer.
 
 3.  Like in lab 2, you can decide the interfaces used between the microservices. Each microservice
@@ -78,6 +79,12 @@ Cache consistency needs to be addressed whenever a toy is purchased or restocked
 implement a server-push technique: catalog server sends invalidation requests to the front-end
 server after each purchase and restock. The invalidation requests cause the front-end service to
 remove the corresponding item from the cache.
+
+Your cache implementation **must include a cache replacement policy** such as LRU (least recently used).
+To exercise this policy, the cache size should be set to a value lower than the number of toys in the catalog.
+For example, if your catalog has 15 different toys, the cache size should be set to 10 to exercise the cache 
+replacement policy. Using a cache size that is larger than the number of items in the catalog should be avoided since it 
+will never trigger cache replacement.
 
 ## Part 2: Replication
 
@@ -134,6 +141,13 @@ make sure that you test the case when the leader is killed. Can the clients noti
 (either during order requests or the final order checking phase) or are they transparent to the
 clients? Do all the order service replicas end up with the same database file?
 
+##  Part 5: Optional part for Extra Credit -  Consensus using RAFT
+
+This part is optional and may be attempted for extra credit. This part can take significant effort and you should attempt it **only if the rest of your lab is complete and in good shape.** 
+
+Assume that the order service is replicated on three nodes. Implement a RAFT consensus protocol that uses state machine replication so that all replicas can order incoming writes and apply them to the database in the same order. This will ensure that race conditions do not occur where concurrent incoming orders go to two different replicas and get applied to the other replicas in different orders. You will need to implement an on-disk log that implements state machine replication as part of RAFT. You will further need to show that failures of a order replica does not prevent the others from making progress since the majority of the replicas (2 out of 3) are still up.  The extra credit part is worth 20 points.
+
+
 ## What to submit
 
 At the top of this README file add the name(s) and umass email address(es) of all the team members.
@@ -146,25 +160,29 @@ code, a `front-end` folder for the front-end service, etc.
 A short README file on how to run your code. Include build/make files if you created any, otherwise
 the README instructions on running the code should provide details on how to do so.
 
-Submit the following additional documents inside the docs directory. 1) A Brief design document (1
-to 2 pages) that explains your design choices (include citations, if you used referred to Internet
+Submit the following additional documents inside the docs directory. 1) A Brief design document (
+2 to 3 pages) that explains your design choices (include citations, if you used referred to Internet
 sources), 2) An Output file (1 to 2 pages), showing sample output or screenshots to indicate your
 program works, and 3) An Evaluation doc (2 to 3 pages), for part 4 showing plots and making
-observations.
+observations.  
+
+If you attempted the extra credit part, include a separate source code folder for this part and also include it in the design doc and show sample output.
 
 ## Grading Rubric
 
-Parts 1-3 account for 70% of the total lab grade:
+Parts 1-3 account for 85% of the total lab grade:
 
 * Code should have inline comments (5%).
 * GitHub repo should have adequate commits and meaningful commit messages (5%).
-* Source code should build and work correctly (40%).
+* Source code should build and work correctly (55%).
 * A descriptive design doc should be submitted (15%).
 * An output file should be included (5%).
 
-Parts 4 account for 30% of the total lab grade:
+Parts 4 accounts for 15% of the total lab grade:
 
 * Should provide steps in your eval docs about how you deployed your application on AWS. Include
-  scripts in your repo if needed (5%).
+  scripts in your repo if needed (15%).
+
+Part 5 acconunts for an extra 20% of the total lab grade.
 * An eval doc with measurement results and plots (15%).
 * Analysis of the results and answers to the questions in part 3 (10%).
