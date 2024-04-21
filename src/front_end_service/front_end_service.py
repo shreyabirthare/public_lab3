@@ -39,6 +39,28 @@ class FrontendHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 error_message = {"error": {"code": 400, "message": "bad request"}}
                 self.wfile.write(json.dumps(error_message).encode('utf-8'))
+        elif parsed_path.path.startswith("/orders/"):
+            order_number = parsed_path.path.split("/")[-1]
+            order_info = requests.get(f"http://{ORDER_HOST}:{ORDER_PORT}/orders/{order_number}")
+            #return order response
+            if order_info.status_code == 200:
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"data": order_info.json()}).encode('utf-8'))
+            elif order_info.status_code == 404:
+                self.send_response(404)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                error_message = {"error": {"code": 404, "message": "Order not found"}}
+                self.wfile.write(json.dumps(error_message).encode('utf-8'))
+            else:
+                self.send_response(400)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                error_message = {"error": {"code": 400, "message": "Bad request"}}
+                self.wfile.write(json.dumps(error_message).encode('utf-8'))
+
     #method to handle all post requests from client. requests forwarded to order service
     def do_POST(self):
         print(f"Thread ID {(threading.get_ident())} handling request from {self.client_address}")

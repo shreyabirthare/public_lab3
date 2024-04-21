@@ -27,10 +27,16 @@ def load_catalog():
         except FileNotFoundError:
             # If the file does not exist, set the catalog with these default values
             catalog = {
-                "Tux": {"price": 15.99, "quantity": 1000},
-                "Whale": {"price": 25.99, "quantity": 500},
-                "Fox": {"price": 12.99, "quantity": 450},
-                "Python": {"price": 20.99, "quantity": 800}
+                "Tux": {"price": 15.99, "quantity": 100},
+                "Whale": {"price": 25.99, "quantity": 100},
+                "Fox": {"price": 12.99, "quantity": 100},
+                "Python": {"price": 20.99, "quantity": 100},
+                "Barbie": {"price": 55.99, "quantity": 100},
+                "Lego": {"price": 45.99, "quantity": 100},
+                "Monopoly": {"price": 10.99, "quantity": 100},
+                "Frisbee": {"price": 5.99, "quantity": 100},
+                "Marbles": {"price": 7.99, "quantity": 100},
+                "Giraffe": {"price": 75.99, "quantity": 100}
             }
             # default catalog is saved to new file
             with open(CATALOG_FILE, 'w', newline='') as file:
