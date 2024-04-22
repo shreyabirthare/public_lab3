@@ -26,7 +26,7 @@ def perform_session():
             response_data = response.json()
             print(f"Query result for {product}: {response_data}")
             if response.status_code == 200 and response_data["data"]["quantity"] > 0 and random.random() < probability_order:
-                qty = random.randint(1, 50)
+                qty = random.randint(1, 10)
                 order_data = {"name": product, "quantity": qty}
                 print(f"placing order for {product}, {qty}")
 
