@@ -13,6 +13,8 @@ CATALOG_FILE = "catalog_data/catalog.csv"
 LOCK = threading.Lock()
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
 host = CATALOG_HOST
+FRONTEND_HOST = os.getenv('FRONTEND_HOST', 'localhost')
+FRONT_END_PORT = int(os.getenv('FRONTEND_LISTENING_PORT',12503))
 
 # Making a public catalog dictionary
 catalog = {}
@@ -43,6 +45,19 @@ def load_catalog():
                 for name, details in catalog.items():
                     writer.writerow({'name': name, 'price': details['price'], 'quantity': details['quantity']})
 
+def send_invalidation_request(product_name): 
+    url = f"http://{FRONTEND_HOST}:{FRONT_END_PORT}/invalidate/{product_name}"
+    try:
+        print(f"Sending invalidation request for {product_name}")
+        response = requests.post(url)
+        print(f"response.status_code: {response.status_code} for {product_name}")
+        if response.status_code == 200:
+            print(f"Invalidation request successfully sent for {product_name}")
+        else:
+            print(f"Failed to send invalidation request with status code {response.status_code} for {product_name}")
+    except Exception as e:
+        print(f"Unexpected error during invalidation request: {e}")
+
 def restock_catalog():
     while True:
         time.sleep(10)
@@ -50,9 +65,10 @@ def restock_catalog():
             updated = False
             for product, details in catalog.items():
                 if details['quantity'] == 0:
-                    print("Restocking {}".format(product))
+                    print(f"Restocking {product}")
                     details['quantity'] = 100
                     updated = True
+                    send_invalidation_request(product)  # Invalidate the front-end cache for this product
             if updated:
                 with open(CATALOG_FILE, 'w', newline='') as file:
                     writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
