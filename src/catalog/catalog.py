@@ -45,18 +45,18 @@ def load_catalog():
                 for name, details in catalog.items():
                     writer.writerow({'name': name, 'price': details['price'], 'quantity': details['quantity']})
 
-def send_invalidation_request(product_name): 
+def send_invalidation_request(product_name):
     url = f"http://{FRONTEND_HOST}:{FRONT_END_PORT}/invalidate/{product_name}"
     try:
-        print(f"Sending invalidation request for {product_name}")
-        response = requests.post(url)
-        print(f"response.status_code: {response.status_code} for {product_name}")
+        response = requests.post(url)  # Added timeout for network calls
         if response.status_code == 200:
-            print(f"Invalidation request successfully sent for {product_name}")
+            response_data = response.json()
+            print(f"{response_data}")
         else:
-            print(f"Failed to send invalidation request with status code {response.status_code} for {product_name}")
+            error_response = response.json()
+            print(f"{error_response}")
     except Exception as e:
-        print(f"Unexpected error during invalidation request: {e}")
+        print(f"Unexpected error during invalidation request for {product_name}: {e}")
 
 def restock_catalog():
     while True:

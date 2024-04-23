@@ -140,10 +140,28 @@ class FrontendHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 error_message = {"error": {"code": 400, "message": "bad request"}}
                 self.wfile.write(json.dumps(error_message).encode('utf-8'))
-        #handle invaldate requests
+        # handle invalidate requests
         elif parsed_path.path.startswith("/invalidate/"):
             product_name = parsed_path.path.split("/")[-1]
-            self.cache.invalidate(product_name)
+            try:
+                self.cache.invalidate(product_name)
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                response_content = json.dumps({"data": f"Cache successfully invalidated for {product_name}"})
+                self.wfile.write(response_content.encode('utf-8'))
+            except KeyError as e:
+                self.send_response(404)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                error_message = json.dumps({"error": {"code": 404, "message": f"No cache entry found for {product_name} to invalidate."}})
+                self.wfile.write(error_message.encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                error_message = json.dumps({"error": {"code": 500, "message": f"An error occurred while invalidating the cache for {product_name}: {str(e)}"}})
+                self.wfile.write(error_message.encode('utf-8'))
 
 # host = 'localhost'
 host = FRONTEND_HOST
