@@ -90,23 +90,30 @@ def update_catalog_for_buy(order_data):
     product_name = order_data.get("name")
     quantity = order_data.get("quantity")
     
-    with LOCK:
-        catalog[product_name]['quantity'] -= quantity
-        # Update catalog CSV file with new corresponding quantity
-        with open(CATALOG_FILE, 'r') as file:
-            reader = csv.DictReader(file)
-            rows = list(reader)
-            
-        for row in rows:
-            if row['name'] == product_name:
-                row['quantity'] = str(catalog[product_name]['quantity'])
-            
-        with open(CATALOG_FILE, 'w', newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
-            writer.writeheader()
-            writer.writerows(rows)
+    try:
+        with LOCK:
+            catalog[product_name]['quantity'] -= quantity
+            # Update catalog CSV file with new corresponding quantity
+            with open(CATALOG_FILE, 'r') as file:
+                reader = csv.DictReader(file)
+                rows = list(reader)
+                
+            for row in rows:
+                if row['name'] == product_name:
+                    row['quantity'] = str(catalog[product_name]['quantity'])
+                
+            with open(CATALOG_FILE, 'w', newline='') as file:
+                writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
+                writer.writeheader()
+                writer.writerows(rows)
 
-        return 200
+            #invalidate product from cache when the catalog is successfully updated
+            send_invalidation_request(product_name)
+            
+            return 200
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return 400
 
 class CatalogRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
