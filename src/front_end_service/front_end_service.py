@@ -128,8 +128,8 @@ class FrontendHandler(BaseHTTPRequestHandler):
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({"data": order_info.json()}).encode('utf-8'))
-                elif order_info.status_code==404:   #sends error code in error label with corresponding message
-                    self.send_response(404)
+                else:   #sends error code in error label with corresponding message
+                    self.send_response(order_info.status_code)
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
                     error_message = {"error": {"code": 404, "message": "product not found or is out of stock"}}

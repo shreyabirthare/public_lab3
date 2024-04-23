@@ -50,6 +50,15 @@ def fetch_order_details(order_number):
                     return {"number": row[0], "name": row[1], "quantity": row[2]}
     return None
 
+def check_product_availability(product_name, requested_quantity):
+    """Check if the catalog has enough quantity of the product."""
+    response = requests.get(f"http://{CATALOG_HOST}:{CATALOG_PORT}/{product_name}")
+    if response.status_code == 200:
+        product_data = response.json()
+        available_quantity = product_data['quantity']
+        return available_quantity >= requested_quantity
+    return False
+
 class OrderRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         order_number = self.path.split("/")[-1]
@@ -77,20 +86,36 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         post_data = json.loads(self.rfile.read(content_length))
-        catalog_response = requests.post(f"http://{CATALOG_HOST}:{CATALOG_PORT}/orders", json=post_data)
-        if catalog_response.status_code == 200:
-            order_number = generate_order_number()
-            product_name = post_data.get("name")
-            quantity = post_data.get("quantity")
-            log_order(order_number, product_name, quantity)
-            self.send_response(200)
+        product_name = post_data.get("name")
+        requested_quantity = post_data.get("quantity")
+
+        # First check if the quantity is sufficient
+        if check_product_availability(product_name, requested_quantity):
+            #then place order
+            print(f"{product_name} is in stock, placing order for {requested_quantity} quantity")
+            catalog_response = requests.post(f"http://{CATALOG_HOST}:{CATALOG_PORT}/orders", json=post_data)
+            if catalog_response.status_code == 200:
+                order_number = generate_order_number()
+                log_order(order_number, product_name, requested_quantity)
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                response_data = {"order_number": order_number}
+                self.wfile.write(json.dumps(response_data).encode())
+            else:
+                self.send_response(catalog_response.status_code)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                error_info = catalog_response.json()  # Assuming the catalog provides JSON error details
+                self.wfile.write(json.dumps(error_info).encode())
+        else:
+            print(f"Requested qunatity {requested_quantity} is greater than available qunatity for {product_name}")
+            self.send_response(400)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            response_data = {"order_number": order_number}
-            self.wfile.write(json.dumps(response_data).encode())
-        else:
-            self.send_response(catalog_response.status_code)
-            self.end_headers()
+            error_message = {"error": {"code": 400, "message": "Insufficient product stock"}}
+            self.wfile.write(json.dumps(error_message).encode())
+
 
 def start_order_service():
     load_order_number()  # Latest order number loaded from disk

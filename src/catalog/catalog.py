@@ -85,37 +85,28 @@ def handle_query(product_name):
         else:
             return None, 404
 
-def handle_buy(order_data):
+def update_catalog_for_buy(order_data):
     global catalog
     product_name = order_data.get("name")
     quantity = order_data.get("quantity")
     
-    if not product_name or not quantity:
-        print("product not found/bad request")
-        return 400
-    
     with LOCK:
-        if product_name in catalog and catalog[product_name]['quantity'] >= quantity:
-            print("product is in stock, updating catalog")
-            catalog[product_name]['quantity'] -= quantity
-            # Update catalog CSV file with new corresponding quantity
-            with open(CATALOG_FILE, 'r') as file:
-                reader = csv.DictReader(file)
-                rows = list(reader)
+        catalog[product_name]['quantity'] -= quantity
+        # Update catalog CSV file with new corresponding quantity
+        with open(CATALOG_FILE, 'r') as file:
+            reader = csv.DictReader(file)
+            rows = list(reader)
             
-            for row in rows:
-                if row['name'] == product_name:
-                    row['quantity'] = str(catalog[product_name]['quantity'])
+        for row in rows:
+            if row['name'] == product_name:
+                row['quantity'] = str(catalog[product_name]['quantity'])
             
-            with open(CATALOG_FILE, 'w', newline='') as file:
-                writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
-                writer.writeheader()
-                writer.writerows(rows)
+        with open(CATALOG_FILE, 'w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
+            writer.writeheader()
+            writer.writerows(rows)
 
-            return 200
-        else:
-            print("product is out of stock or insufficient quantity")
-            return 404
+        return 200
 
 class CatalogRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -132,7 +123,7 @@ class CatalogRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         post_data = json.loads(self.rfile.read(content_length))
-        response_code = handle_buy(post_data)
+        response_code = update_catalog_for_buy(post_data)
         self.send_response(response_code)
         if response_code == 200:
             self.send_header('Content-Type', 'application/json')
@@ -140,7 +131,7 @@ class CatalogRequestHandler(BaseHTTPRequestHandler):
         else:
             self.send_header('Content-Type', 'text/plain')
             self.end_headers()
-            self.wfile.write(f"Order failed: {response_code}".encode('utf-8'))
+            self.wfile.write(f"Updating catalog failed: {response_code}".encode('utf-8'))
 
 def start_catalog_service():
     load_catalog()
