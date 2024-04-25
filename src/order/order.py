@@ -31,15 +31,31 @@ def get_followers(leader_host, leader_port):
             for f in ORDER_NODES.split(",") 
             if f != f"{leader_host}:{leader_port}"]
 
-# Propagate order details to followers
+def send_data(follower, data):
+    """Function to send data to a single follower."""
+    url = f"http://{follower['host']}:{follower['port']}/replicate_order"
+    try:
+        response = requests.post(url, json=data)
+        response.raise_for_status()  # This will raise an exception for HTTP errors.
+        print(f"Successfully propagated to {url}")
+    except requests.RequestException as e:
+        print(f"Error propagating to {url}: {e}")
+
 def propagate_order_to_followers(order_number, product_name, quantity, leader_info):
-    data = {"order_number": order_number, "product_name": product_name, "quantity": quantity, "leader_id": f"{ORDER_HOST}:{ORDER_PORT}"}
+    data = {
+        "order_number": order_number,
+        "product_name": product_name,
+        "quantity": quantity,
+        "leader_id": f"{ORDER_HOST}:{ORDER_PORT}"
+    }
+    threads = []
     for follower in get_followers(leader_info['host'], leader_info['port']):
-        url = f"http://{follower['host']}:{follower['port']}/replicate_order"
-        try:
-            requests.post(url, json=data)
-        except Exception as e:
-            print(f"Error propagating to {url}: {e}")
+        thread = threading.Thread(target=send_data, args=(follower, data))
+        thread.start()
+        threads.append(thread)
+    
+    for thread in threads:
+        thread.join()  # Wait for all threads to complete
 
 def log_order(order_number, product_name, quantity, leader_info=None):
     """Log order and optionally propagate to followers."""
