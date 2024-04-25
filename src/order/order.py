@@ -9,11 +9,11 @@ import os
 # Initializing order service host and port, lock, order file
 ORDER_PORT = int(os.getenv('ORDER_LISTENING_PORT', 12502))
 CATALOG_PORT = int(os.getenv('CATALOG_LISTENING_PORT', 12501))
-ORDER_FILE = "order_data/order_log.csv"
+ORDER_FILE = f"order_data/order_log_{os.getenv('REPLICA_ID', '1')}.csv"
 LOCK = threading.Lock()
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
 ORDER_HOST = os.getenv('ORDER_HOST', 'localhost')
-host = ORDER_HOST
+ORDER_NODES = os.getenv('ORDER_NODES', "localhost:12502,localhost:12504,localhost:12505")  # "host1:port1,host2:port2"
 
 # Initializing global order number variable to 0
 order_number = 0
@@ -23,12 +23,32 @@ def generate_order_number():
         global order_number
         order_number += 1
         return order_number - 1
+    
+# Helper function to get follower details
+def get_followers(leader_host, leader_port):
+    # Exclude the leader node based on host and port information
+    return [dict(zip(["host", "port"], f.split(":"))) 
+            for f in ORDER_NODES.split(",") 
+            if f != f"{leader_host}:{leader_port}"]
 
-def log_order(order_number, product_name, quantity):
+# Propagate order details to followers
+def propagate_order_to_followers(order_number, product_name, quantity, leader_info):
+    data = {"order_number": order_number, "product_name": product_name, "quantity": quantity, "leader_id": f"{ORDER_HOST}:{ORDER_PORT}"}
+    for follower in get_followers(leader_info['host'], leader_info['port']):
+        url = f"http://{follower['host']}:{follower['port']}/replicate_order"
+        try:
+            requests.post(url, json=data)
+        except Exception as e:
+            print(f"Error propagating to {url}: {e}")
+
+def log_order(order_number, product_name, quantity, leader_info=None):
+    """Log order and optionally propagate to followers."""
     with LOCK:
         with open(ORDER_FILE, 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([order_number, product_name, quantity])
+        if leader_info:
+            propagate_order_to_followers(order_number, product_name, quantity, leader_info)
 
 def load_order_number():
     global order_number
@@ -61,6 +81,13 @@ def check_product_availability(product_name, requested_quantity):
 
 class OrderRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "healthy"}).encode())
+            return
+
         order_number = self.path.split("/")[-1]
         try:
             order_number = int(order_number)
@@ -84,10 +111,22 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(error_message).encode())
 
     def do_POST(self):
+
+        if self.path == "/replicate_order":
+            return self.handle_replication()
+        
         content_length = int(self.headers['Content-Length'])
         post_data = json.loads(self.rfile.read(content_length))
         product_name = post_data.get("name")
         requested_quantity = post_data.get("quantity")
+        leader_info = post_data.get('leader')
+
+        if not leader_info:
+            self.send_response(403)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "This node is not the leader and cannot accept write operations."}).encode())
+            return
 
         # First check if the quantity is sufficient
         if check_product_availability(product_name, requested_quantity):
@@ -96,7 +135,7 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
             catalog_response = requests.post(f"http://{CATALOG_HOST}:{CATALOG_PORT}/orders", json=post_data)
             if catalog_response.status_code == 200:
                 order_number = generate_order_number()
-                log_order(order_number, product_name, requested_quantity)
+                log_order(order_number, product_name, requested_quantity, leader_info)
                 self.send_response(200)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
@@ -115,12 +154,23 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             error_message = {"error": {"code": 400, "message": "Insufficient product stock"}}
             self.wfile.write(json.dumps(error_message).encode())
+    
+    def handle_replication(self):
+        """Handle replication request from the leader."""
+        data = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
+        # Log the order without propagating since this is a follower action
+        log_order(data['order_number'], data['product_name'], data['quantity'])
+        print(f"Order replicated by leader ID: {data['leader_id']}")
+        self.send_response(200)
+        self.send_header("Content-type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "Replication successful"}).encode())
 
 
 def start_order_service():
     load_order_number()  # Latest order number loaded from disk
-    order_server = ThreadingHTTPServer((host, ORDER_PORT), OrderRequestHandler)
-    print(f'Starting order service on {host}:{ORDER_PORT}...')
+    order_server = ThreadingHTTPServer((ORDER_HOST, ORDER_PORT), OrderRequestHandler)
+    print(f'Starting order service on {ORDER_HOST}:{ORDER_PORT}...')
     order_server.serve_forever()
 
 if __name__ == "__main__":

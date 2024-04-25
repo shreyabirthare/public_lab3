@@ -9,11 +9,28 @@ from collections import OrderedDict
 #initializing front_end_service host and port
 FRONT_END_PORT = int(os.getenv('FRONTEND_LISTENING_PORT',12503))
 CATALOG_PORT = int(os.getenv('CATALOG_PORT',12501))
-ORDER_PORT = int(os.getenv('ORDER_PORT',12502))
-
 FRONTEND_HOST = os.getenv('FRONTEND_HOST', 'localhost')
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
-ORDER_HOST = os.getenv('ORDER_HOST', 'localhost')
+
+# Configuration of Order Service Replicas
+ORDER_REPLICAS = {
+    os.getenv('REPLICA1_ID', 1): {"host": os.getenv('REPLICA1_HOST', 'localhost'), "port": int(os.getenv('REPLICA1_PORT', 12502))},
+    os.getenv('REPLICA2_ID', 2): {"host": os.getenv('REPLICA2_HOST', 'localhost'), "port": int(os.getenv('REPLICA2_PORT', 12504))},
+    os.getenv('REPLICA3_ID', 3): {"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
+}
+
+def get_leader():
+    """Dynamically determine the leader among replicas by checking each by ID descending."""
+    for replica_id in sorted(ORDER_REPLICAS.keys(), reverse=True):
+        replica = ORDER_REPLICAS[replica_id]
+        try:
+            response = requests.get(f"http://{replica['host']}:{replica['port']}/health")
+            if response.status_code == 200:
+                print(f"Leader found: Replica {replica_id}")
+                return replica
+        except requests.ConnectionError:
+            print(f"Failed to connect to Replica {replica_id} at {replica['host']}:{replica['port']}")
+    return None
 
 class LRUCache:
     """ LRU Cache to hold the product data with thread-safe operations """
@@ -93,8 +110,16 @@ class FrontendHandler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(error_message).encode('utf-8'))
         #else if query order info
         elif parsed_path.path.startswith("/orders/"):
+            leader = get_leader()
+            if leader is None:
+                self.send_response(503)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                error_message = {"error": {"code": 503, "message": "Service unavailable. No leader found."}}
+                self.wfile.write(json.dumps(error_message).encode())
+                return
             order_number = parsed_path.path.split("/")[-1]
-            order_info = requests.get(f"http://{ORDER_HOST}:{ORDER_PORT}/orders/{order_number}")
+            order_info = requests.get(f"http://{leader['host']}:{leader['port']}/orders/{order_number}")
             #return order response
             if order_info.status_code == 200:
                 self.send_response(200)
@@ -120,9 +145,18 @@ class FrontendHandler(BaseHTTPRequestHandler):
         parsed_path = urllib.parse.urlparse(self.path)
         #place orders, forward to order service
         if parsed_path.path.startswith("/orders/"):
+            leader = get_leader()
+            if leader is None:
+                self.send_response(503)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                error_message = {"error": {"code": 503, "message": "Service unavailable. No leader found."}}
+                self.wfile.write(json.dumps(error_message).encode())
+                return
             order_data = json.loads(self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8'))
+            order_data['leader'] = leader
             try:
-                order_info = requests.post(f"http://{ORDER_HOST}:{ORDER_PORT}/orders", json=order_data)
+                order_info = requests.post(f"http://{leader['host']}:{leader['port']}/orders", json=order_data)
                 if order_info.status_code==200: #sends order info in data label if query was successful
                     self.send_response(200)
                     self.send_header("Content-type", "application/json")
