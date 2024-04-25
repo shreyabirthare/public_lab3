@@ -19,14 +19,38 @@ ORDER_REPLICAS = {
     os.getenv('REPLICA3_ID', 3): {"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
 }
 
+def notify_replica(replica, leader_info, leader_id):
+    """Function to send leader notification to a single replica."""
+    try:
+        url = f"http://{replica['host']}:{replica['port']}/notify_leader"
+        data = {"leader": leader_info, "leader_id": leader_id}
+        response = requests.post(url, json=data)
+        print(f"Successfully notified {url}, status code: {response.status_code}")
+    except requests.RequestException as e:
+        print(f"Error notifying {url}: {e}")
+
+def notify_replicas_of_leader(leader_info, replicas, leader_id):
+    """ Notify all replicas of the current leader along with the leader's ID. """
+    threads = []
+    for replica in replicas:
+        if f"{replica['host']}:{replica['port']}" != f"{leader_info['host']}:{leader_info['port']}":
+            thread = threading.Thread(target=notify_replica, args=(replica, leader_info, leader_id))
+            thread.start()
+            threads.append(thread)
+    
+    for thread in threads:
+        thread.join()  # Wait for all threads to complete
+
 def get_leader():
-    """Dynamically determine the leader among replicas by checking each by ID descending."""
+    """ Find the leader, notify others, and include the leader ID. """
     for replica_id in sorted(ORDER_REPLICAS.keys(), reverse=True):
         replica = ORDER_REPLICAS[replica_id]
         try:
             response = requests.get(f"http://{replica['host']}:{replica['port']}/health")
             if response.status_code == 200:
                 print(f"Leader found: Replica {replica_id}")
+                # Notify other replicas about the leader and send the leader's replica ID
+                notify_replicas_of_leader(replica, ORDER_REPLICAS.values(), replica_id)
                 return replica
         except requests.ConnectionError:
             print(f"Failed to connect to Replica {replica_id} at {replica['host']}:{replica['port']}")
@@ -197,11 +221,7 @@ class FrontendHandler(BaseHTTPRequestHandler):
                 error_message = json.dumps({"error": {"code": 500, "message": f"An error occurred while invalidating the cache for {product_name}: {str(e)}"}})
                 self.wfile.write(error_message.encode('utf-8'))
 
-# host = 'localhost'
-host = FRONTEND_HOST
-port = FRONT_END_PORT
 
-frontend_server = ThreadingHTTPServer((host, port), FrontendHandler)
-
-print(f'Starting front-end server on {host}:{port}...')
+frontend_server = ThreadingHTTPServer((FRONTEND_HOST, FRONT_END_PORT), FrontendHandler)
+print(f'Starting front-end server on {FRONTEND_HOST}:{FRONT_END_PORT}...')
 frontend_server.serve_forever()

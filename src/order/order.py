@@ -131,6 +131,9 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/replicate_order":
             return self.handle_replication()
         
+        if self.path == "/notify_leader":
+            return self.handle_leader_notification()
+        
         content_length = int(self.headers['Content-Length'])
         post_data = json.loads(self.rfile.read(content_length))
         product_name = post_data.get("name")
@@ -181,6 +184,25 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
         self.send_header("Content-type", "application/json")
         self.end_headers()
         self.wfile.write(json.dumps({"status": "Replication successful"}).encode())
+    
+    def handle_leader_notification(self):
+        """Handle leader notification request from the front-end service."""
+        content_length = int(self.headers['Content-Length'])
+        post_data = json.loads(self.rfile.read(content_length))
+        leader_info = post_data.get('leader')
+        leader_id = post_data.get('leader_id')
+
+        if leader_info and leader_id is not None:
+            print(f"Found Leader! Leader ID: {leader_id} and Leader Info: {leader_info}")
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"status": "Leader updated successfully"}).encode())
+        else:
+            self.send_response(400)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "No leader information provided"}).encode())
 
 
 def start_order_service():
