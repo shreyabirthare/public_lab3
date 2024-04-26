@@ -20,14 +20,26 @@ ORDER_REPLICAS = {
 }
 
 def notify_replica(replica, leader_info, leader_id):
-    """Function to send leader notification to a single replica."""
+    """Function to send leader notification to a single replica and handle all responses."""
+    url = f"http://{replica['host']}:{replica['port']}/notify_leader_info_to_replica"
+    data = {"leader": leader_info, "leader_id": leader_id}
     try:
-        url = f"http://{replica['host']}:{replica['port']}/notify_leader"
-        data = {"leader": leader_info, "leader_id": leader_id}
         response = requests.post(url, json=data)
-        print(f"Successfully notified {url}, status code: {response.status_code}")
+        response_data = response.json()
+        if response.status_code == 200:
+            print(f"Successfully notified {url}. Leader ID: {leader_id} accepted. {response_data}")
+        else:
+            print(f"Failed to notify {url}. Status code: {response.status_code}, Error: {response_data}")
+    except requests.ConnectionError:
+        print(f"ConnectionError: Could not connect to {url}")
+    except requests.Timeout:
+        print(f"TimeoutError: Timeout while trying to connect to {url}")
     except requests.RequestException as e:
-        print(f"Error notifying {url}: {e}")
+        print(f"HTTPError: An error occurred while notifying {url}. Error: {str(e)}")
+    except json.JSONDecodeError:
+        print(f"JSONError: Failed to decode JSON response from {url}")
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
 
 def notify_replicas_of_leader(leader_info, replicas, leader_id):
     """ Notify all replicas of the current leader along with the leader's ID. """
@@ -47,13 +59,14 @@ def get_leader():
         replica = ORDER_REPLICAS[replica_id]
         try:
             response = requests.get(f"http://{replica['host']}:{replica['port']}/health")
+            response_data = response.json()
             if response.status_code == 200:
-                print(f"Leader found: Replica {replica_id}")
+                print(f"Leader found: Order Service {replica_id}. {response_data}")
                 # Notify other replicas about the leader and send the leader's replica ID
                 notify_replicas_of_leader(replica, ORDER_REPLICAS.values(), replica_id)
                 return replica
         except requests.ConnectionError:
-            print(f"Failed to connect to Replica {replica_id} at {replica['host']}:{replica['port']}")
+            print(f"Failed to connect to Order Service {replica_id} at {replica['host']}:{replica['port']}")
     return None
 
 class LRUCache:
@@ -139,7 +152,7 @@ class FrontendHandler(BaseHTTPRequestHandler):
                 self.send_response(503)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                error_message = {"error": {"code": 503, "message": "Service unavailable. No leader found."}}
+                error_message = {"error": {"code": 503, "message": "Order service unavailable. No leader found."}}
                 self.wfile.write(json.dumps(error_message).encode())
                 return
             order_number = parsed_path.path.split("/")[-1]
@@ -190,7 +203,7 @@ class FrontendHandler(BaseHTTPRequestHandler):
                     self.send_response(order_info.status_code)
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    error_message = {"error": {"code": 404, "message": "product not found or is out of stock"}}
+                    error_message = {"error": {"code": 404, "message": order_info.json()}}
                     self.wfile.write(json.dumps(error_message).encode('utf-8'))
             except: #sends error code in error label with corresponding message for all other errors
                 self.send_response(400)

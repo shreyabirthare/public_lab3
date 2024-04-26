@@ -38,7 +38,7 @@ def perform_session():
                 if order_response_data.get('data') and 'order_number' in order_response_data['data']:
                     order_numbers.append(order_response_data['data']['order_number'])
                 else:
-                    print(f"Error placing order for {product}: {order_response_data.get('error', 'No error info provided')}")
+                    print(f"Error placing order for {product}: {order_response_data}")
         except json.JSONDecodeError:
             print(f"Error decoding JSON for {product} query: {response.text}")
         except KeyError:
@@ -47,11 +47,11 @@ def perform_session():
     # Verify each order's information after all are placed
     for order_number in order_numbers:
         order_info_response = session.get(f"http://{FRONTEND_HOST}:{FRONT_END_PORT}/orders/{order_number}")
+        order_info_data = order_info_response.json()
         if order_info_response.status_code == 200:
-            order_info_data = order_info_response.json()
             print(f"Verified order {order_number}: {order_info_data}")
         else:
-            print(f"Failed to retrieve order {order_number}, Status code: {order_info_response.status_code}")
+            print(f"Failed to retrieve order {order_number}, Error: {order_info_data}")
 
     endTime = time.time()
     session.close()

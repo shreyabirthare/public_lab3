@@ -12,7 +12,6 @@ CATALOG_PORT = int(os.getenv('CATALOG_LISTENING_PORT', 12501))
 CATALOG_FILE = "catalog_data/catalog.csv"
 LOCK = threading.Lock()
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
-host = CATALOG_HOST
 FRONTEND_HOST = os.getenv('FRONTEND_HOST', 'localhost')
 FRONT_END_PORT = int(os.getenv('FRONTEND_LISTENING_PORT',12503))
 
@@ -49,18 +48,16 @@ def send_invalidation_request(product_name):
     url = f"http://{FRONTEND_HOST}:{FRONT_END_PORT}/invalidate/{product_name}"
     try:
         response = requests.post(url)  # Added timeout for network calls
+        response_data = response.json()
         if response.status_code == 200:
-            response_data = response.json()
             print(f"{response_data}")
         else:
-            error_response = response.json()
-            print(f"{error_response}")
+            print(f"{response_data}")
     except Exception as e:
         print(f"Unexpected error during invalidation request for {product_name}: {e}")
 
 def restock_catalog():
     while True:
-        time.sleep(10)
         with LOCK:
             updated = False
             for product, details in catalog.items():
@@ -75,6 +72,7 @@ def restock_catalog():
                     writer.writeheader()
                     for name, details in catalog.items():
                         writer.writerow({'name': name, 'price': details['price'], 'quantity': details['quantity']})
+        time.sleep(10)  # Rest for 10 seconds after processing any necessary restocking
 
 def handle_query(product_name):
     with LOCK:
@@ -144,8 +142,8 @@ def start_catalog_service():
     load_catalog()
     restock_thread = threading.Thread(target=restock_catalog, daemon=True)
     restock_thread.start()
-    catalog_server = ThreadingHTTPServer((host, CATALOG_PORT), CatalogRequestHandler)
-    print(f"Starting catalog service on {host}:{CATALOG_PORT}...")
+    catalog_server = ThreadingHTTPServer((CATALOG_HOST, CATALOG_PORT), CatalogRequestHandler)
+    print(f"Starting catalog service on {CATALOG_HOST}:{CATALOG_PORT}...")
     catalog_server.serve_forever()
 
 if __name__ == "__main__":

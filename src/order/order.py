@@ -131,7 +131,7 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/replicate_order":
             return self.handle_replication()
         
-        if self.path == "/notify_leader":
+        if self.path == "/notify_leader_info_to_replica":
             return self.handle_leader_notification()
         
         content_length = int(self.headers['Content-Length'])
