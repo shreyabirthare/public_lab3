@@ -7,14 +7,19 @@ import csv
 import os
 
 # Initializing order service host and port, lock, order file
+Replica_id=int(os.getenv('Replica_id',1))
 ORDER_PORT = int(os.getenv('ORDER_LISTENING_PORT', 12502))
 CATALOG_PORT = int(os.getenv('CATALOG_LISTENING_PORT', 12501))
-ORDER_FILE = f"order_data/order_log_{os.getenv('REPLICA_ID', '1')}.csv"
+ORDER_FILE = f"order_data/order_log_{str(Replica_id)}.csv"
 LOCK = threading.Lock()
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
 ORDER_HOST = os.getenv('ORDER_HOST', 'localhost')
-ORDER_NODES = os.getenv('ORDER_NODES', "localhost:12502,localhost:12504,localhost:12505")  # "host1:port1,host2:port2"
-
+#ORDER_NODES = os.getenv('ORDER_NODES', "localhost:12502,localhost:12504,localhost:12505")  # "host1:port1,host2:port2"
+ORDER_NODES = {
+    os.getenv('REPLICA1_ID', 1): {"id":1,"host": os.getenv('REPLICA1_HOST', 'localhost'), "port": int(os.getenv('REPLICA1_PORT', 12502))},
+    os.getenv('REPLICA2_ID', 2): {"id":2,"host": os.getenv('REPLICA2_HOST', 'localhost'), "port": int(os.getenv('REPLICA2_PORT', 12504))},
+    os.getenv('REPLICA3_ID', 3): {"id":3,"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
+}
 # Initializing global order number variable to 0
 order_number = 0
 
@@ -25,11 +30,9 @@ def generate_order_number():
         return order_number - 1
     
 # Helper function to get follower details
+
 def get_followers(leader_host, leader_port):
-    # Exclude the leader node based on host and port information
-    return [dict(zip(["host", "port"], f.split(":"))) 
-            for f in ORDER_NODES.split(",") 
-            if f != f"{leader_host}:{leader_port}"]
+    return [follower for follower in ORDER_NODES.values() if follower['host'] != leader_host or follower['port'] != leader_port]
 
 def send_data(follower, data):
     """Function to send data to a single follower."""
@@ -63,6 +66,7 @@ def log_order(order_number, product_name, quantity, leader_info=None):
         with open(ORDER_FILE, 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow([order_number, product_name, quantity])
+
         if leader_info:
             propagate_order_to_followers(order_number, product_name, quantity, leader_info)
 
@@ -95,6 +99,70 @@ def check_product_availability(product_name, requested_quantity):
         return available_quantity >= requested_quantity
     return False
 
+def fetch_latest_order_id():
+    """Fetch the latest order ID"""
+    with LOCK:
+        local_latest_order_number=order_number
+    if local_latest_order_number>0:
+        return local_latest_order_number-1
+    else:
+        return local_latest_order_number
+
+def request_missed_orders(order_number):
+    """Request missed orders from the highest replica ID other than its own."""
+    sorted_nodes = sorted(ORDER_NODES.values(), key=lambda x: x['id'], reverse=True)
+    for node in sorted_nodes:
+        if node['id'] != Replica_id:
+            replica_host = node["host"]
+            replica_port = node["port"]
+            url = f"http://{replica_host}:{replica_port}/missed_order"
+            try:
+                response = requests.post(url, json={"latest_order_id": order_number})
+                if response.status_code == 200:
+                    print("Nothing is missed")
+                    return
+                elif response.status_code == 201:
+                    # Collect missed orders into a list
+                    missed_orders = response.json().get("missed_orders", [])
+                    print(missed_orders)
+                    if missed_orders:
+                        with LOCK:
+                            # Append new missed orders to the CSV file
+                            with open(ORDER_FILE, 'a', newline='') as file:
+                                writer = csv.writer(file)
+                                for order in missed_orders:
+                                    writer.writerow([order['order_number'], order['product_name'], order['quantity']])
+                                print("appending missed orders")
+
+                            # Read CSV file, sort its contents based on order_id, and overwrite the file
+                            with open(ORDER_FILE, 'r', newline='') as file:
+                                reader = csv.reader(file)
+                                data = sorted(list(reader), key=lambda x: int(x[0]))  # Sort based on order_id
+                            with open(ORDER_FILE, 'w', newline='') as file:
+                                writer = csv.writer(file)
+                                writer.writerows(data)
+                                print(f"Missed orders received from replica {node['id']}")
+                        load_order_number()
+                    return
+            except requests.RequestException as e:
+                print(f"Error requesting missed orders from replica {node['id']}: {e}")
+    print("Failed to receive missed orders from any replica")
+
+def fetch_missed_orders(start_order_id):
+    """Fetch missed orders starting from the provided order ID."""
+    missed_orders = []
+    with LOCK:
+        if os.path.exists(ORDER_FILE) and os.path.getsize(ORDER_FILE) > 0:
+            with open(ORDER_FILE, 'r') as file:
+                reader = csv.reader(file)
+                found_start_id = False
+                for row in reader:
+                    if found_start_id:
+                        missed_orders.append({"order_number": row[0], "product_name": row[1], "quantity": row[2]})
+                    elif int(row[0]) == start_order_id:
+                        found_start_id = True
+    return missed_orders
+
 class OrderRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
@@ -102,6 +170,7 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
             self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"status": "healthy"}).encode())
+            print("i am now leader")
             return
 
         order_number = self.path.split("/")[-1]
@@ -130,6 +199,9 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
 
         if self.path == "/replicate_order":
             return self.handle_replication()
+        
+        if self.path == "/missed_order":
+            return self.handle_missed_order_request()
         
         if self.path == "/notify_leader_info_to_replica":
             return self.handle_leader_notification()
@@ -179,6 +251,11 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
         data = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         # Log the order without propagating since this is a follower action
         log_order(data['order_number'], data['product_name'], data['quantity'])
+        received_order_id= int(data['order_number'])
+        with LOCK:
+            global order_number
+            order_number =received_order_id+1
+        
         print(f"Order replicated by leader ID: {data['leader_id']}")
         self.send_response(200)
         self.send_header("Content-type", "application/json")
@@ -204,9 +281,36 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps({"error": "No leader information provided"}).encode())
 
+    def handle_missed_order_request(self):
+        """Handle request for missed orders from another replica."""
+        content_length = int(self.headers['Content-Length'])
+        post_data = json.loads(self.rfile.read(content_length))
+        received_latest_order_id = post_data.get('latest_order_id')
+
+        # Get the latest order ID
+        local_latest_order_id = fetch_latest_order_id()
+
+        if received_latest_order_id == local_latest_order_id:
+            # If the received latest order ID matches the local latest order ID,
+            # then respond with code 200, indicating that the local replica is up to date
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"message": "You are up to date"}).encode())
+        elif received_latest_order_id < local_latest_order_id:
+            # If the received latest order ID is less than the local latest order ID,
+            # it means the other replica has missed some orders. Respond with code 201
+            # and send the missed order details to the other replica.
+            missed_orders = fetch_missed_orders(received_latest_order_id)
+            self.send_response(201)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(json.dumps({"missed_orders": missed_orders}).encode())
+
 
 def start_order_service():
     load_order_number()  # Latest order number loaded from disk
+    request_missed_orders(fetch_latest_order_id())
     order_server = ThreadingHTTPServer((ORDER_HOST, ORDER_PORT), OrderRequestHandler)
     print(f'Starting order service on {ORDER_HOST}:{ORDER_PORT}...')
     order_server.serve_forever()

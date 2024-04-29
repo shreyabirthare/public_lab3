@@ -43,6 +43,7 @@ def perform_session():
             print(f"Error decoding JSON for {product} query: {response.text}")
         except KeyError:
             print(f"Unexpected JSON structure: {response.text}")
+        time.sleep(10)
 
     # Verify each order's information after all are placed
     for order_number in order_numbers:
@@ -57,6 +58,7 @@ def perform_session():
     session.close()
     responseTime = endTime - startTime
     print(f"***Response Time: {responseTime} seconds***")
+    
 
 if __name__ == "__main__":
     perform_session()
