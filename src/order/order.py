@@ -93,11 +93,17 @@ def fetch_order_details(order_number):
 def check_product_availability(product_name, requested_quantity):
     """Check if the catalog has enough quantity of the product."""
     response = requests.get(f"http://{CATALOG_HOST}:{CATALOG_PORT}/{product_name}")
+    
     if response.status_code == 200:
         product_data = response.json()
         available_quantity = product_data['quantity']
-        return available_quantity >= requested_quantity
-    return False
+        if available_quantity >= requested_quantity:
+            return 200 #indicates product name exists and it is in stock
+        else: 
+            return 400 #indicates that product name exists but quantity requested is not in stock
+    else:
+        return response.status_code #any other error code received from catalog like 404 out of stock or bad request
+            
 
 def fetch_latest_order_id():
     """Fetch the latest order ID"""
@@ -216,12 +222,14 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
             self.send_response(403)
             self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "This node is not the leader and cannot accept write operations."}).encode())
+            self.wfile.write(json.dumps({"error": "This node is not the leader and cannot accept write operations. "}).encode())
             return
+        
+        product_status=check_product_availability(product_name, requested_quantity)
 
         # First check if the quantity is sufficient
-        if check_product_availability(product_name, requested_quantity):
-            #then place order
+        if product_status==200:
+            #then place order-item available
             print(f"{product_name} is in stock, placing order for {requested_quantity} quantity")
             catalog_response = requests.post(f"http://{CATALOG_HOST}:{CATALOG_PORT}/orders", json=post_data)
             if catalog_response.status_code == 200:
@@ -232,18 +240,28 @@ class OrderRequestHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 response_data = {"order_number": order_number}
                 self.wfile.write(json.dumps(response_data).encode())
+            #send catalog error in placing order
             else:
                 self.send_response(catalog_response.status_code)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 error_info = catalog_response.json()  # Assuming the catalog provides JSON error details
                 self.wfile.write(json.dumps(error_info).encode())
-        else:
+        #check if quantity is out of stock
+        elif product_status==400:
             print(f"Requested qunatity {requested_quantity} is greater than available qunatity for {product_name}")
             self.send_response(400)
             self.send_header("Content-type", "application/json")
             self.end_headers()
             error_message = {"error": {"code": 400, "message": "Insufficient product stock"}}
+            self.wfile.write(json.dumps(error_message).encode())
+        #else return bad request/wrong product name error
+        else:
+            print(f"Bad Request/Product name does not exist ")
+            self.send_response(product_status)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            error_message = {"error": {"code": product_status, "message": "bad request/wrong product name"}}
             self.wfile.write(json.dumps(error_message).encode())
     
     def handle_replication(self):

@@ -81,6 +81,7 @@ def handle_query(product_name):
             response_data = {'name': product_name, 'price': product_info['price'], 'quantity': product_info['quantity']}
             return response_data, 200
         else:
+            print(f"query error for {product_name}")
             return None, 404
 
 def update_catalog_for_buy(order_data):
@@ -110,7 +111,7 @@ def update_catalog_for_buy(order_data):
             
             return 200
     except Exception as e:
-        print(f"Error occurred: {e}")
+        print(f"Error occurred during purchase of for {product_name}: {e}")
         return 400
 
 class CatalogRequestHandler(BaseHTTPRequestHandler):
