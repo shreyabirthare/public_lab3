@@ -41,22 +41,29 @@ class CatalogServiceTest(unittest.TestCase):
 
 #testing order microservice with various scenarios
 class OrderServiceTest(unittest.TestCase):
-    ORDER_URL = 'http://localhost:12502'
+    ORDER_URL = 'http://localhost:12505'
     CATALOG_URL = 'http://localhost:12501'
+
 
     def test_place_order_successfully(self):
         order_data = {'name': 'Python', 'quantity': 10}
+        order_data['leader'] ={'host': 'localhost', 'port': 12505}
+        
         response = requests.post(f'{self.ORDER_URL}/orders', json=order_data)
         self.assertEqual(response.status_code, 200)
         order_response_data = response.json()
         self.assertTrue('order_number' in order_response_data)
 
     def test_quantity_more_than_available(self):
-        response = requests.post(f'{self.ORDER_URL}/orders', json={'name': 'Tux', 'quantity': 500000})
-        self.assertNotEqual(response.status_code, 200)
+        order_data = {'name': 'Tux', 'quantity': 1000000}
+        order_data['leader'] ={'host': 'localhost', 'port': 12505}
+        response = requests.post(f'{self.ORDER_URL}/orders', json=order_data)
+        self.assertEqual(response.status_code, 400)
     
     def test_place_order_for_non_existing_product(self):
-        response = requests.post(f'{self.ORDER_URL}/orders', json={'name': 'Caterpillar', 'quantity': 1})
+        order_data = {'name': 'Caterpillar', 'quantity': 1}
+        order_data['leader'] ={'host': 'localhost', 'port': 12505}
+        response = requests.post(f'{self.ORDER_URL}/orders', json=order_data)
         self.assertNotEqual(response.status_code, 200)
         self.assertEqual(response.status_code, 404)
 
