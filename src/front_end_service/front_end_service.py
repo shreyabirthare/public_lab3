@@ -9,7 +9,7 @@ from collections import OrderedDict
 #initializing front_end_service host and port
 FRONT_END_PORT = int(os.getenv('FRONTEND_LISTENING_PORT',12503))
 CATALOG_PORT = int(os.getenv('CATALOG_PORT',12501))
-FRONTEND_HOST = os.getenv('FRONTEND_HOST', 'localhost')
+FRONTEND_HOST = os.getenv('FRONTEND_HOST', '0.0.0.0')
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
 
 # Configuration of Order Service Replicas
