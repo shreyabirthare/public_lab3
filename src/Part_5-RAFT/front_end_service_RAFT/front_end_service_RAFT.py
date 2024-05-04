@@ -4,13 +4,19 @@ import urllib.parse
 import threading
 import requests
 import os
+import threading
 from collections import OrderedDict
+import csv
 
 #initializing front_end_service host and port
+FRONT_END_LOG_FILE= "Front_end_log/Front_end_log.csv"
 FRONT_END_PORT = int(os.getenv('FRONTEND_LISTENING_PORT',12503))
 CATALOG_PORT = int(os.getenv('CATALOG_PORT',12501))
 FRONTEND_HOST = os.getenv('FRONTEND_HOST', '0.0.0.0')
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
+LEADER_ID=0
+LEADER_TERM=0
+LOCK = threading.Lock()
 
 # Configuration of Order Service Replicas
 ORDER_REPLICAS = {
@@ -18,6 +24,42 @@ ORDER_REPLICAS = {
     os.getenv('REPLICA2_ID', 2): {"host": os.getenv('REPLICA2_HOST', 'localhost'), "port": int(os.getenv('REPLICA2_PORT', 12504))},
     os.getenv('REPLICA3_ID', 3): {"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
 }
+
+def load_latest_leaderID_term():
+    global LEADER_ID, LEADER_TERM
+    with LOCK:
+        if os.path.exists(FRONT_END_LOG_FILE) and os.path.getsize(FRONT_END_LOG_FILE) > 0:
+            with open(FRONT_END_LOG_FILE, 'r') as file:
+                reader = csv.reader(file)
+                last_row = list(reader)[-1]  # get latest row
+                LEADER_ID = int(last_row[0])# latest fetched LEADER ID
+                LEADER_TERM = int(last_row[1])# latest fetched LEADER ID
+                
+        else:
+            LEADER_ID =0
+            LEADER_TERM =0
+def fetch_LEADER_ID():
+    global LEADER_ID
+    with LOCK:
+        return LEADER_ID
+    
+def fetch_LEADER_TERM():
+    global LEADER_TERM
+    with LOCK:
+        return LEADER_TERM
+
+    
+def log_leader(LEADER_id, LEADER_term):
+    """Log LATEST LEADER ID AND TERM, update global variables as well"""
+    global LEADER_ID, LEADER_TERM
+    with LOCK:
+        with open(FRONT_END_LOG_FILE, 'a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow([LEADER_id, LEADER_term])
+        LEADER_ID=LEADER_id
+        LEADER_TERM=LEADER_term
+
+        
 
 def notify_replica(replica, leader_info, leader_id):
     """Function to send leader notification to a single replica and handle all responses."""
@@ -55,20 +97,29 @@ def notify_replicas_of_leader(leader_info, replicas, leader_id):
 
 def get_leader():
     """ Find the leader, notify others, and include the leader ID. """
+    global LEADER_ID, LEADER_TERM
     for replica_id in sorted(ORDER_REPLICAS.keys(), reverse=True):
         replica = ORDER_REPLICAS[replica_id]
         try:
             response = requests.get(f"http://{replica['host']}:{replica['port']}/health", timeout=20)
             response_data = response.json()
             if response.status_code == 200:
-                
-                print(f"Leader found: Order Service {replica_id}. {response_data}")
-                # Notify other replicas about the leader and send the leader's replica ID
-                notify_replicas_of_leader(replica, ORDER_REPLICAS.values(), replica_id)
-                return replica
+                previous_LEADER_ID= fetch_LEADER_ID()
+                previous_LEADER_TERM=fetch_LEADER_TERM()
+                if previous_LEADER_ID!=replica_id:
+                    previous_LEADER_TERM+=1
+                response1=requests.get(f"http://{replica['host']}:{replica['port']}/note_raft_term/{previous_LEADER_TERM}",timeout=20)
+                if response1.status_code==200:
+                    print(f"Leader found: Order Service {replica_id}. {response_data}")
+                    print(f"Successfully notified raft term to LEADER ID {replica_id}")
+                    log_leader(replica_id,previous_LEADER_TERM)
+                    # Notify other replicas about the leader and send the leader's replica ID
+                    notify_replicas_of_leader(replica, ORDER_REPLICAS.values(), replica_id)
+                    return replica
         except requests.ConnectionError:
             print(f"Failed to connect to Order Service {replica_id} at {replica['host']}:{replica['port']}")
     return None
+
 
 class LRUCache:
     """ LRU Cache to hold the product data with thread-safe operations """
@@ -235,7 +286,11 @@ class FrontendHandler(BaseHTTPRequestHandler):
                 error_message = json.dumps({"error": {"code": 500, "message": f"An error occurred while invalidating the cache for {product_name}: {str(e)}"}})
                 self.wfile.write(error_message.encode('utf-8'))
 
+def start_front_end_service():
+    frontend_server = ThreadingHTTPServer((FRONTEND_HOST, FRONT_END_PORT), FrontendHandler)
+    print(f'Starting front-end server on {FRONTEND_HOST}:{FRONT_END_PORT}...')
+    frontend_server.serve_forever()
 
-frontend_server = ThreadingHTTPServer((FRONTEND_HOST, FRONT_END_PORT), FrontendHandler)
-print(f'Starting front-end server on {FRONTEND_HOST}:{FRONT_END_PORT}...')
-frontend_server.serve_forever()
+if __name__ == "__main__":
+    load_latest_leaderID_term()
+    start_front_end_service()
