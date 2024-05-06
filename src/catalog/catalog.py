@@ -84,35 +84,42 @@ def handle_query(product_name):
             print(f"query error for {product_name}")
             return None, 404
 
-def update_catalog_for_buy(order_data):
+def handle_buy(order_data):
     global catalog
     product_name = order_data.get("name")
     quantity = order_data.get("quantity")
     
-    try:
-        with LOCK:
-            catalog[product_name]['quantity'] -= quantity
-            # Update catalog CSV file with new corresponding quantity
-            with open(CATALOG_FILE, 'r') as file:
-                reader = csv.DictReader(file)
-                rows = list(reader)
-                
-            for row in rows:
-                if row['name'] == product_name:
-                    row['quantity'] = str(catalog[product_name]['quantity'])
-                
-            with open(CATALOG_FILE, 'w', newline='') as file:
-                writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
-                writer.writeheader()
-                writer.writerows(rows)
-
-            #invalidate product from cache when the catalog is successfully updated
-            send_invalidation_request(product_name)
-            
-            return 200
-    except Exception as e:
-        print(f"Error occurred during purchase of for {product_name}: {e}")
+    if not product_name or not quantity:
+        print("product not found/bad req")
         return 400
+    
+    with LOCK:
+        if product_name in catalog:
+            if catalog[product_name]['quantity'] >= quantity:
+                print("product is in stock, updating catalog")
+                catalog[product_name]['quantity'] -= quantity  # Subtract the requested quantity from catalog
+                # Update catalog CSV file with new corresponding quantity
+                with open(CATALOG_FILE, 'r') as file:
+                    reader = csv.DictReader(file)
+                    rows = list(reader)
+
+                # corresponding row to the product name is found and its quantity is updated
+                for row in rows:
+                    if row['name'] == product_name:
+                        row['quantity'] = str(int(row['quantity']) - int(quantity))
+                        break
+
+                # modified rows written back to the catalog disk csv file
+                with open(CATALOG_FILE, 'w', newline='') as file:
+                    writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
+                    writer.writeheader()
+                    writer.writerows(rows)
+
+                return 200
+            else:
+                return 400
+        else:
+            return 404
 
 class CatalogRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -129,7 +136,7 @@ class CatalogRequestHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
         post_data = json.loads(self.rfile.read(content_length))
-        response_code = update_catalog_for_buy(post_data)
+        response_code = handle_buy(post_data)
         self.send_response(response_code)
         if response_code == 200:
             self.send_header('Content-Type', 'application/json')

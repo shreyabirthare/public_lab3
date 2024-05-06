@@ -200,17 +200,24 @@ class FrontendHandler(BaseHTTPRequestHandler):
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
                     self.wfile.write(json.dumps({"data": order_info.json()}).encode('utf-8'))
-                else:   #sends error code in error label with corresponding message
+                elif order_info.status_code==400:   #sends error code in error label with corresponding message
                     self.send_response(order_info.status_code)
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    error_message = {"error": {"code": 404, "message": order_info.json()}}
+                    error_message = {"error": {"code": 400, "message": "product is out of stock"}}
                     self.wfile.write(json.dumps(error_message).encode('utf-8'))
+                else:
+                    self.send_response(404)
+                    self.send_header("Content-type", "application/json")
+                    self.end_headers()
+                    error_message = {"error": {"code": 404, "message": "bad request/product name not found"}}
+                    self.wfile.write(json.dumps(error_message).encode('utf-8'))
+
             except: #sends error code in error label with corresponding message for all other errors
-                self.send_response(400)
+                self.send_response(404)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                error_message = {"error": {"code": 400, "message": "bad request"}}
+                error_message = {"error": {"code": 404, "message": "Bad Request"}}
                 self.wfile.write(json.dumps(error_message).encode('utf-8'))
         # handle invalidate requests
         elif parsed_path.path.startswith("/invalidate/"):
