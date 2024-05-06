@@ -90,35 +90,40 @@ def handle_buy(order_data):
     quantity = order_data.get("quantity")
     
     if not product_name or not quantity:
-        print("product not found/bad req")
-        return 400
-    
-    with LOCK:
-        if product_name in catalog:
-            if catalog[product_name]['quantity'] >= quantity:
-                print("product is in stock, updating catalog")
-                catalog[product_name]['quantity'] -= quantity  # Subtract the requested quantity from catalog
-                # Update catalog CSV file with new corresponding quantity
-                with open(CATALOG_FILE, 'r') as file:
-                    reader = csv.DictReader(file)
-                    rows = list(reader)
+        print("Incomplete arguments/ Bad req")
+        return 404
+    try:
+        with LOCK:
+            if product_name in catalog:
+                if catalog[product_name]['quantity'] >= quantity:
+                    print("product is in stock, updating catalog")
+                    catalog[product_name]['quantity'] -= quantity  # Subtract the requested quantity from catalog
+                    # Update catalog CSV file with new corresponding quantity
+                    with open(CATALOG_FILE, 'r') as file:
+                        reader = csv.DictReader(file)
+                        rows = list(reader)
 
-                # corresponding row to the product name is found and its quantity is updated
-                for row in rows:
-                    if row['name'] == product_name:
-                        row['quantity'] = str(int(row['quantity']) - int(quantity))
-                        break
+                    # corresponding row to the product name is found and its quantity is updated
+                    for row in rows:
+                        if row['name'] == product_name:
+                            row['quantity'] = str(int(row['quantity']) - int(quantity))
+                            break
 
-                # modified rows written back to the catalog disk csv file
-                with open(CATALOG_FILE, 'w', newline='') as file:
-                    writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
-                    writer.writeheader()
-                    writer.writerows(rows)
+                    # modified rows written back to the catalog disk csv file
+                    with open(CATALOG_FILE, 'w', newline='') as file:
+                        writer = csv.DictWriter(file, fieldnames=['name', 'price', 'quantity'])
+                        writer.writeheader()
+                        writer.writerows(rows)
+                    #invalidate product from cache when the catalog is successfully updated
+                    send_invalidation_request(product_name)
 
-                return 200
+                    return 200
+                else:
+                    return 400
             else:
-                return 400
-        else:
+                return 404
+    except Exception as e:
+            print(f"Error occurred during purchase of for {product_name}: {e}")
             return 404
 
 class CatalogRequestHandler(BaseHTTPRequestHandler):
