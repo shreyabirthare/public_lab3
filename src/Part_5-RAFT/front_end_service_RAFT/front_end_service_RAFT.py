@@ -20,9 +20,9 @@ LOCK = threading.Lock()
 
 # Configuration of Order Service Replicas
 ORDER_REPLICAS = {
-    os.getenv('REPLICA1_ID', 1): {"host": os.getenv('REPLICA1_HOST', 'localhost'), "port": int(os.getenv('REPLICA1_PORT', 12502))},
-    os.getenv('REPLICA2_ID', 2): {"host": os.getenv('REPLICA2_HOST', 'localhost'), "port": int(os.getenv('REPLICA2_PORT', 12504))},
-    os.getenv('REPLICA3_ID', 3): {"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
+    os.getenv('REPLICA_ID', 1): {"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12502))},
+    os.getenv('REPLICA_ID', 2): {"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12504))},
+    os.getenv('REPLICA_ID', 3): {"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12505))}
 }
 
 def load_latest_leaderID_term():

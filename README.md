@@ -7,11 +7,45 @@ Spring 2024
 
 
 ## Information about your submission
-1. Name and email: add your name and email here. 
-2. Team member name and email: add team member info. say none if this is a solo submission
-3. Number of late days used for this lab: say zero if none used
-4. Number of late days used so far including this lab: say zero if none used.
+1. Name and email: Shreya Birthare (sbirthare@umass.edu), Simran Malik (simranmalik@umass.edu)
+2. Team member name and email: spring24-lab3-spring24-lab3-shreya-simran
+3. Number of late days used for this lab: 3
+4. Number of late days used so far including this lab: 3 + 2 (medical exception for Lab2 as approved by Professor)
 
+
+README:
+
+1. Download the latest version of python from: https://www.python.org/downloads/
+2. Set Up AWS Academy account
+3. Clone the repo: git clone https://github.com/umass-cs677-current/spring24-lab3-spring24-lab3-shreya-simran.git
+4. Go inside the clone repo: cd cloned-repo-path
+5. Install requirements.txt: pip install -r requirements.txt
+
+RUNNING PARTS 1-3:
+
+1. In src/catalog/catalog.py, src/order/order.py, src/front_end_service/front_end_service.py you can modify the IP addresses, ports, replica ids of the microservices: REPLICA_ID, ORDER_PORT, ORDER_HOST, ORDER_NODES, CATALOG_PORT, CATALOG_HOST, FRONT_END_PORT, FRONTEND_HOST
+
+2. Delete any order_log.csv files if they exist already: rm ../src/order/order_data/order_log*
+
+3. Start the three microservices. As per instructions mentioned in the lab, start the microservices in order:
+    1. Start the catalog service first. Export the CATALOG_PORT, CATALOG_HOST env variables if required. By default, if not specified, it'll run on the default port and localhost: cd <$TOP>/src/catalog; export CATALOG_PORT=<catalog_port>; export CATALOG_HOST=<catalog_host>; python3 catalog.py
+    2. Start the three order services now.
+        1. Navigate to the order directory: cd <$TOP>/src/order
+        2. By default they run on local host. We can configure the IP address of the three order services by updating the ORDER_HOST env variable. Note that the ORDER_HOST variable is optional.
+        3. To run the three order ervices, we would need to configure the port numbers. To do so, update the ORDER_PORT env variable to run on suitable ports.
+        4. In addition to it, also update the REPLICA_ID of the services to determine the id, based on these values, the leader will be selected.
+        5. Use the below three reference commands to start the 3 order services:
+            1. export ORDER_HOST=<order_host>; export REPLICA_ID=3; export ORDER_LISTENING_PORT=12505; python3 order.py
+            2. export ORDER_HOST=<order_host>; export REPLICA_ID=2; export ORDER_LISTENING_PORT=12504; python3 order.py
+            3. export ORDER_HOST=<order_host>; export REPLICA_ID=1; export ORDER_LISTENING_PORT=12502; python3 order.py
+    3. Start the front_end service now. Export the FRONT_END_PORT, FRONTEND_HOST env variables if required. By default, if not specified, it'll run on the default port and localhost: cd <$TOP>/src/front_end_service; export FRONT_END_PORT=<front_end_port>; export FRONTEND_HOST=<frontend_host>; python3 front_end_service.py
+    4. Finally run the client: cd <$TOP>/src/; python3 client.py To run more than one clients concurrently: python3 client.py & python3 client.py This will run 2 concurrent client instances
+
+RUNNING UNIT TESTS:
+
+1. cd <$TOP>/testing/; python3 -m unittest unitTests
+
+***
 
 ## Goals and Learning Outcomes
 

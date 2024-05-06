@@ -7,19 +7,19 @@ import csv
 import os
 
 # Initializing order service host and port, lock, order file
-Replica_id=int(os.getenv('Replica_id',1))
+REPLICA_ID=int(os.getenv('REPLICA_ID',1))
 ORDER_PORT = int(os.getenv('ORDER_LISTENING_PORT', 12502))
 CATALOG_PORT = int(os.getenv('CATALOG_LISTENING_PORT', 12501))
-ORDER_FILE = f"order_data/order_log_{str(Replica_id)}.csv"
-RAFT_FILE=f"raft_data/raft_log_{str(Replica_id)}.csv"
+ORDER_FILE = f"order_data/order_log_{str(REPLICA_ID)}.csv"
+RAFT_FILE=f"raft_data/raft_log_{str(REPLICA_ID)}.csv"
 LOCK = threading.Lock()
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
 ORDER_HOST = os.getenv('ORDER_HOST', 'localhost')
 #ORDER_NODES = os.getenv('ORDER_NODES', "localhost:12502,localhost:12504,localhost:12505")  # "host1:port1,host2:port2"
 ORDER_NODES = {
-    os.getenv('REPLICA1_ID', 1): {"id":1,"host": os.getenv('REPLICA1_HOST', 'localhost'), "port": int(os.getenv('REPLICA1_PORT', 12502))},
-    os.getenv('REPLICA2_ID', 2): {"id":2,"host": os.getenv('REPLICA2_HOST', 'localhost'), "port": int(os.getenv('REPLICA2_PORT', 12504))},
-    os.getenv('REPLICA3_ID', 3): {"id":3,"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
+    os.getenv('REPLICA_ID', 1): {"id":os.getenv('REPLICA_ID', 1),"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12502))},
+    os.getenv('REPLICA_ID', 2): {"id":os.getenv('REPLICA_ID', 2),"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12504))},
+    os.getenv('REPLICA_ID', 3): {"id":os.getenv('REPLICA_ID', 3),"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12505))}
 }
 # Initializing global order number variable to 0
 order_number = 0
@@ -249,7 +249,7 @@ def request_missed_orders(order_number):
     """Request missed orders from the highest replica ID other than its own."""
     sorted_nodes = sorted(ORDER_NODES.values(), key=lambda x: x['id'], reverse=True)
     for node in sorted_nodes:
-        if node['id'] != Replica_id:
+        if node['id'] != REPLICA_ID:
             replica_host = node["host"]
             replica_port = node["port"]
             url = f"http://{replica_host}:{replica_port}/missed_order"
@@ -289,7 +289,7 @@ def request_missed_raft_entries(raft_index):
     """Request missed orders from the highest replica ID other than its own."""
     sorted_nodes = sorted(ORDER_NODES.values(), key=lambda x: x['id'], reverse=True)
     for node in sorted_nodes:
-        if node['id'] != Replica_id:
+        if node['id'] != REPLICA_ID:
             replica_host = node["host"]
             replica_port = node["port"]
             url = f"http://{replica_host}:{replica_port}/missed_raft"

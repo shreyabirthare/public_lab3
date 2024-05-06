@@ -9,14 +9,14 @@ from collections import OrderedDict
 #initializing front_end_service host and port
 FRONT_END_PORT = int(os.getenv('FRONTEND_LISTENING_PORT',12503))
 CATALOG_PORT = int(os.getenv('CATALOG_PORT',12501))
-FRONTEND_HOST = os.getenv('FRONTEND_HOST', '0.0.0.0')
+FRONTEND_HOST = os.getenv('FRONTEND_HOST', 'localhost')
 CATALOG_HOST = os.getenv('CATALOG_HOST', 'localhost')
 
 # Configuration of Order Service Replicas
 ORDER_REPLICAS = {
-    os.getenv('REPLICA1_ID', 1): {"host": os.getenv('REPLICA1_HOST', 'localhost'), "port": int(os.getenv('REPLICA1_PORT', 12502))},
-    os.getenv('REPLICA2_ID', 2): {"host": os.getenv('REPLICA2_HOST', 'localhost'), "port": int(os.getenv('REPLICA2_PORT', 12504))},
-    os.getenv('REPLICA3_ID', 3): {"host": os.getenv('REPLICA3_HOST', 'localhost'), "port": int(os.getenv('REPLICA3_PORT', 12505))}
+    os.getenv('REPLICA_ID', 1): {"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12502))},
+    os.getenv('REPLICA_ID', 2): {"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12504))},
+    os.getenv('REPLICA_ID', 3): {"host": os.getenv('ORDER_HOST', 'localhost'), "port": int(os.getenv('ORDER_PORT', 12505))}
 }
 
 def notify_replica(replica, leader_info, leader_id):
