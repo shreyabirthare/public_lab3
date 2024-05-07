@@ -45,6 +45,23 @@ RUNNING UNIT TESTS:
 
 1. cd <$TOP>/testing/; python3 -m unittest unitTests
 
+LATENCY EVALUATION
+
+1. cd <$TOP>/src/;
+2. run the notebook: latencyCalc.ipynb
+
+STEPS TO CONFIGURE AND RUN AWS:
+
+1. See steps mentioned in <$TOP>/Documents/aws document pdf.pdf
+
+STEPS TO RUN THE RAFT CODE:
+
+1. cd <$TOP>/src/Part_5-RAFT
+2. Start the original catalog service as ususal described above.
+3. Start the order_RAFT.py services. The steps are exactly the same as how you would run it originally, just the file name is different
+4. Start front_end_service_RAFT.py service. The steps are exactly the same as how you would run it originally, just the file name is different
+5. Start the client.py same as above
+
 ***
 
 ## Goals and Learning Outcomes
