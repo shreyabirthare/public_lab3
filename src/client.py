@@ -70,7 +70,7 @@ def perform_session():
             print(f"Error decoding JSON for {product} query: {response.text}")
         except KeyError:
             print(f"Unexpected JSON structure: {response.text}")
-        time.sleep(10)
+        #time.sleep(10)
 
     # Verify each order's information after all are placed
     for order_number in order_numbers:
@@ -81,7 +81,6 @@ def perform_session():
         else:
             print(f"Failed to retrieve order {order_number}, Error: {order_info_data}")
 
-    #endTime = time.time()
     session.close()
     Final_product_request_responseTime = time_product_request/50
     Final_order_request_responseTime=0
