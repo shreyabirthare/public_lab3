@@ -7,8 +7,8 @@ Spring 2024
 
 
 ## Information about your submission
-1. Name and email: Shreya Birthare (sbirthare@umass.edu), Simran Malik (simranmalik@umass.edu)
-2. Team member name and email: spring24-lab3-spring24-lab3-shreya-simran
+1. Name and email: Shreya Birthare (sbirthare@umass.edu)
+2. Team member name and email: Simran Malik (simranmalik@umass.edu)
 3. Number of late days used for this lab: 3
 4. Number of late days used so far including this lab: 3 + 2 (medical exception for Lab2 as approved by Professor)
 
